@@ -110,20 +110,25 @@ void ps(void)
 		}
 		snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/cmdline", pid);
 		ssize_t bytes_read = read_file_content(exe_buf, argv_read, BUFFER_SIZE);
-		if (bytes_read >= 0)
-		{
-			size_t string_amount = count_null_terminated_strings(argv_read, bytes_read);
+		if (bytes_read == -1) {
+			free(argv_read);
+			free(envp_read);
+			continue;
+		}
+					size_t string_amount = count_null_terminated_strings(argv_read, bytes_read);
 			argv_buf = malloc((string_amount + 1) * sizeof(char *));
 			parse_strings(argv_read, argv_buf, BUFFER_SIZE / sizeof(char *));
-		}
 		snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/environ", pid);
 		bytes_read = read_file_content(exe_buf, envp_read, BUFFER_SIZE);
-		if (bytes_read >= 0)
+		if (bytes_read == -1)
 		{
+			free(argv_read);
+			free(envp_read);
+			continue;
+		}
 			size_t string_amount = count_null_terminated_strings(envp_read, bytes_read);
 			envp_buf = malloc((string_amount + 1) * sizeof(char *));
 			parse_strings(envp_read, envp_buf, BUFFER_SIZE / sizeof(char *));
-		}
 		report_process(pid, exe_buf, argv_buf, envp_buf);
 		free(argv_buf);
 		free(envp_buf);
