@@ -33,7 +33,7 @@ DIR *open_proc_dir() {
 }
 
 void *allocate_buffer(size_t size) {
-	void *buffer = malloc(size);
+	void *buffer = malloc(size + 1);
 	if (!buffer) {
 		free(buffer);
 		report_error(PROC_DIRECTORY, ENOMEM);
