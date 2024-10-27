@@ -6,12 +6,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define BUFFER_SIZE 16384
 #define PATH_LENGTH 256
 #define PROC_DIRECTORY "/proc"
 
-ssize_t get_executable_path(pid_t pid, char *exe_buf)
+	ssize_t get_executable_path(pid_t pid, char *exe_buf)
 {
 	char path_buf[PATH_LENGTH];
 	snprintf(path_buf, sizeof(path_buf), "/proc/%d/exe", pid);
