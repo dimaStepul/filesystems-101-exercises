@@ -90,6 +90,7 @@ void ps(void)
 		}
 
 		char exe_buf[PATH_LENGTH];
+		char cur_path[PATH_LENGTH];
 		char *argv_read = malloc(BUFFER_SIZE + 1);
 		char *envp_read = malloc(BUFFER_SIZE + 1);
 		char **argv_buf = NULL;
@@ -108,8 +109,8 @@ void ps(void)
 			free(envp_read);
 			continue;
 		}
-		snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/cmdline", pid);
-		ssize_t bytes_read = read_file_content(exe_buf, argv_read, BUFFER_SIZE);
+		snprintf(cur_path, sizeof(cur_path), "/proc/%d/cmdline", pid);
+		ssize_t bytes_read = read_file_content(cur_path, argv_read, BUFFER_SIZE);
 		if (bytes_read == -1) {
 			free(argv_read);
 			free(envp_read);
@@ -118,13 +119,13 @@ void ps(void)
 					size_t string_amount = count_null_terminated_strings(argv_read, bytes_read);
 			argv_buf = malloc((string_amount + 1) * sizeof(char *));
 			parse_strings(argv_read, argv_buf, BUFFER_SIZE / sizeof(char *));
-		snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/environ", pid);
-		bytes_read = read_file_content(exe_buf, envp_read, BUFFER_SIZE);
-		if (bytes_read == -1)
-		{
-			free(argv_read);
-			free(envp_read);
-			continue;
+			snprintf(cur_path, sizeof(cur_path), "/proc/%d/environ", pid);
+			bytes_read = read_file_content(cur_path, envp_read, BUFFER_SIZE);
+			if (bytes_read == -1)
+			{
+				free(argv_read);
+				free(envp_read);
+				continue;
 		}
 		 string_amount = count_null_terminated_strings(envp_read, bytes_read);
 			envp_buf = malloc((string_amount + 1) * sizeof(char *));
