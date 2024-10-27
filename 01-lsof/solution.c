@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 32768
 
 int is_pid(const char *name)
 {
