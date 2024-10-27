@@ -126,7 +126,7 @@ void ps(void)
 			free(envp_read);
 			continue;
 		}
-			size_t string_amount = count_null_terminated_strings(envp_read, bytes_read);
+		 string_amount = count_null_terminated_strings(envp_read, bytes_read);
 			envp_buf = malloc((string_amount + 1) * sizeof(char *));
 			parse_strings(envp_read, envp_buf, BUFFER_SIZE / sizeof(char *));
 		report_process(pid, exe_buf, argv_buf, envp_buf);
