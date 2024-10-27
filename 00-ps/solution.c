@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <limits.h>
 
-#define BUFFER_SIZE 16384
+#define BUFFER_SIZE 65536
 #define PATH_MAX 4096
 #define PROC_DIRECTORY "/proc"
 
@@ -32,16 +32,16 @@ DIR *open_proc_dir() {
 	return proc_dir;
 }
 
-void *allocate_buffer(size_t size) {
-	void *buffer = malloc(size + 1);
-	if (!buffer) {
-		free(buffer);
-		report_error(PROC_DIRECTORY, ENOMEM);
-		exit(EXIT_FAILURE);
-	}
-	memset(buffer, 0, size);
-	return buffer;
-}
+// void *allocate_buffer(size_t size) {
+// 	void *buffer = malloc(size + 1);
+// 	if (!buffer) {
+// 		free(buffer);
+// 		report_error(PROC_DIRECTORY, ENOMEM);
+// 		exit(EXIT_FAILURE);
+// 	}
+// 	memset(buffer, 0, size);
+// 	return buffer;
+// }
 
 
 ssize_t get_executable_path(pid_t pid, char *exe_buf) {
@@ -118,8 +118,8 @@ void ps(void)
 	if (!proc_dir)
 		return;
 	char exe_buf[PATH_MAX];
-	char **argv_buf = allocate_buffer(BUFFER_SIZE / sizeof(char *));
-	char **envp_buf = allocate_buffer(BUFFER_SIZE / sizeof(char *));
+	char **argv_buf = malloc((BUFFER_SIZE / sizeof(char *)) * sizeof(char *));
+	char **envp_buf = malloc((BUFFER_SIZE / sizeof(char *)) * sizeof(char *));
 	if (!argv_buf || !envp_buf)
 	{
 		free(argv_buf);
