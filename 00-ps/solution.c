@@ -11,7 +11,6 @@
 #define PATH_LENGTH 256
 #define PROC_DIRECTORY "/proc"
 
-
 ssize_t get_executable_path(pid_t pid, char *exe_buf)
 {
 	char path_buf[PATH_LENGTH];
@@ -72,71 +71,63 @@ int count_null_terminated_strings(const char *buffer, size_t size)
 	return count;
 }
 
-void get_process_info(pid_t pid, char ***argv_buf, char ***envp_buf)
-{
-	char path_buf[PATH_LENGTH];
-
-	char *argv_read = malloc(BUFFER_SIZE + 1);
-	char *envp_read = malloc(BUFFER_SIZE + 1);
-
-	if (!argv_read || !envp_read)
-	{
-		report_error(PROC_DIRECTORY, ENOMEM);
-		exit(EXIT_FAILURE);
-	}
-
-	snprintf(path_buf, sizeof(path_buf), "/proc/%d/cmdline", pid);
-	ssize_t bytes_read = read_file_content(path_buf, argv_read, BUFFER_SIZE);
-	if (bytes_read >= 0)
-	{
-		size_t string_amount = count_null_terminated_strings(argv_read, bytes_read);
-		*argv_buf = malloc((string_amount + 1) * sizeof(char *));
-		parse_strings(argv_read, *argv_buf, BUFFER_SIZE / sizeof(char *));
-	}
-
-	snprintf(path_buf, sizeof(path_buf), "/proc/%d/environ", pid);
-	bytes_read = read_file_content(path_buf, envp_read, BUFFER_SIZE);
-	if (bytes_read >= 0)
-	{
-		size_t string_amount = count_null_terminated_strings(envp_read, bytes_read);
-		*envp_buf = malloc((string_amount + 1) * sizeof(char *));
-		parse_strings(envp_read, *envp_buf, BUFFER_SIZE / sizeof(char *));
-	}
-
-	free(argv_read);
-	free(envp_read);
-}
-
 void ps(void)
 {
 	DIR *proc_dir = opendir(PROC_DIRECTORY);
-	if (!proc_dir) {
+	if (!proc_dir)
+	{
 		report_error(PROC_DIRECTORY, ENOENT);
 		return;
 	}
+
 	struct dirent *cur_dir;
 	while ((cur_dir = readdir(proc_dir)))
 	{
-		int is_pid = atoi(cur_dir->d_name);
-		if (is_pid  <= 0)
+		if (!isdigit(cur_dir->d_name[0]))
 		{
 			continue;
 		}
+
 		char exe_buf[PATH_LENGTH];
+		char *argv_read = malloc(BUFFER_SIZE + 1);
+		char *envp_read = malloc(BUFFER_SIZE + 1);
 		char **argv_buf = NULL;
 		char **envp_buf = NULL;
+
+		if (!argv_read || !envp_read)
+		{
+			report_error(PROC_DIRECTORY, ENOMEM);
+			exit(EXIT_FAILURE);
+		}
 
 		pid_t pid = atol(cur_dir->d_name);
 		if (get_executable_path(pid, exe_buf) == -1)
 		{
+			free(argv_read);
+			free(envp_read);
 			continue;
 		}
-
-		get_process_info(pid, &argv_buf, &envp_buf);
+		snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/cmdline", pid);
+		ssize_t bytes_read = read_file_content(exe_buf, argv_read, BUFFER_SIZE);
+		if (bytes_read >= 0)
+		{
+			size_t string_amount = count_null_terminated_strings(argv_read, bytes_read);
+			argv_buf = malloc((string_amount + 1) * sizeof(char *));
+			parse_strings(argv_read, argv_buf, BUFFER_SIZE / sizeof(char *));
+		}
+		snprintf(exe_buf, sizeof(exe_buf), "/proc/%d/environ", pid);
+		bytes_read = read_file_content(exe_buf, envp_read, BUFFER_SIZE);
+		if (bytes_read >= 0)
+		{
+			size_t string_amount = count_null_terminated_strings(envp_read, bytes_read);
+			envp_buf = malloc((string_amount + 1) * sizeof(char *));
+			parse_strings(envp_read, envp_buf, BUFFER_SIZE / sizeof(char *));
+		}
 		report_process(pid, exe_buf, argv_buf, envp_buf);
-
 		free(argv_buf);
 		free(envp_buf);
+		free(argv_read);
+		free(envp_read);
 	}
 
 	closedir(proc_dir);
