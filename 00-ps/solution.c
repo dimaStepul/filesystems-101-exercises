@@ -39,6 +39,7 @@ void *allocate_buffer(size_t size) {
 		report_error(PROC_DIRECTORY, ENOMEM);
 		exit(EXIT_FAILURE);
 	}
+	memset(buffer, 0, size);
 	return buffer;
 }
 
@@ -79,7 +80,7 @@ ssize_t read_file_content(const char *path, char *buffer, size_t buffer_size) {
 int parse_strings(char *input, char **output, size_t max_output_size){
 	size_t count = 0;
 	char *ptr = input;
-	while (*ptr && count < max_output_size)
+	while (*ptr && count < max_output_size - 1)
 	{
 		output[count++] = ptr;
 		ptr += strlen(ptr) + 1;
@@ -119,7 +120,13 @@ void ps(void)
 	char exe_buf[PATH_MAX];
 	char **argv_buf = allocate_buffer(BUFFER_SIZE / sizeof(char *));
 	char **envp_buf = allocate_buffer(BUFFER_SIZE / sizeof(char *));
-
+	if (!argv_buf || !envp_buf)
+	{
+		free(argv_buf);
+		free(envp_buf);
+		closedir(proc_dir);
+		exit(EXIT_FAILURE);
+	}
 	struct dirent *cur_dir;
 	while ((cur_dir = readdir(proc_dir)))
 	{
