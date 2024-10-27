@@ -10,12 +10,15 @@
 #include <limits.h>
 
 #define BUFFER_SIZE 16384
-#define PATH_MAX 4096
+#define PATH_LENGTH 256
 #define PROC_DIRECTORY "/proc"
 
-int is_pid(const char *name) {
-	while (*name) {
-		if (!isdigit(*name)) {
+int is_pid(const char *name)
+{
+	while (*name)
+	{
+		if (!isdigit(*name))
+		{
 			return 0;
 		}
 		name++;
@@ -23,32 +26,24 @@ int is_pid(const char *name) {
 	return 1;
 }
 
-DIR *open_proc_dir() {
+DIR *open_proc_dir()
+{
 	DIR *proc_dir = opendir(PROC_DIRECTORY);
-	if (!proc_dir) {
+	if (!proc_dir)
+	{
 		report_error(PROC_DIRECTORY, ENOENT);
 		return NULL;
 	}
 	return proc_dir;
 }
 
-void *allocate_buffer(size_t size) {
-	void *buffer = malloc(size + 1);
-	if (!buffer) {
-		free(buffer);
-		report_error(PROC_DIRECTORY, ENOMEM);
-		exit(EXIT_FAILURE);
-	}
-	memset(buffer, 0, size);
-	return buffer;
-}
-
-
-ssize_t get_executable_path(pid_t pid, char *exe_buf) {
-	char path_buf[256];
+ssize_t get_executable_path(pid_t pid, char *exe_buf)
+{
+	char path_buf[PATH_LENGTH];
 	snprintf(path_buf, sizeof(path_buf), "/proc/%d/exe", pid);
-	ssize_t exe_len = readlink(path_buf, exe_buf, PATH_MAX);
-	if (exe_len == -1) {
+	ssize_t exe_len = readlink(path_buf, exe_buf, PATH_LENGTH);
+	if (exe_len == -1)
+	{
 		report_error(path_buf, errno);
 		return -1;
 	}
@@ -56,10 +51,11 @@ ssize_t get_executable_path(pid_t pid, char *exe_buf) {
 	return exe_len;
 }
 
-
-ssize_t read_file_content(const char *path, char *buffer, size_t buffer_size) {
+ssize_t read_file_content(const char *path, char *buffer, size_t buffer_size)
+{
 	FILE *file = fopen(path, "r");
-	if (!file) {
+	if (!file)
+	{
 		if (errno == EACCES)
 			return -1;
 		report_error(path, errno);
@@ -75,8 +71,8 @@ ssize_t read_file_content(const char *path, char *buffer, size_t buffer_size) {
 	return bytes_read;
 }
 
-
-int parse_strings(char *input, char **output, size_t max_output_size){
+int parse_strings(char *input, char **output, size_t max_output_size)
+{
 	size_t count = 0;
 	char *ptr = input;
 	while (*ptr && count < max_output_size - 1)
@@ -88,24 +84,52 @@ int parse_strings(char *input, char **output, size_t max_output_size){
 	return count;
 }
 
+int count_null_terminated_strings(const char *buffer, size_t size)
+{
+	size_t count = 0;
+	for (size_t i = 0; i < size; i++)
+	{
+		if (buffer[i] == '\0')
+		{
+			count++;
+		}
+	}
+	return count;
+}
 
+void get_process_info(pid_t pid, char ***argv_buf, char ***envp_buf)
+{
+	char path_buf[PATH_LENGTH];
 
-void get_process_info(pid_t pid, char **argv_buf, char **envp_buf){
-	char path_buf[PATH_MAX];
-	char argv_read[BUFFER_SIZE];
-	char envp_read[BUFFER_SIZE];
+	char *argv_read = malloc(BUFFER_SIZE + 1);
+	char *envp_read = malloc(BUFFER_SIZE + 1);
+
+	if (!argv_read || !envp_read)
+	{
+		report_error(PROC_DIRECTORY, ENOMEM);
+		exit(EXIT_FAILURE);
+	}
 
 	snprintf(path_buf, sizeof(path_buf), "/proc/%d/cmdline", pid);
-	if (read_file_content(path_buf, argv_read, BUFFER_SIZE) >= 0)
+	ssize_t bytes_read = read_file_content(path_buf, argv_read, BUFFER_SIZE);
+	if (bytes_read >= 0)
 	{
-		parse_strings(argv_read, argv_buf, BUFFER_SIZE / sizeof(char *));
+		size_t string_amount = count_null_terminated_strings(argv_read, bytes_read);
+		*argv_buf = malloc((string_amount + 1) * sizeof(char *));
+		parse_strings(argv_read, *argv_buf, BUFFER_SIZE / sizeof(char *));
 	}
 
 	snprintf(path_buf, sizeof(path_buf), "/proc/%d/environ", pid);
-	if (read_file_content(path_buf, envp_read, BUFFER_SIZE) >= 0)
+	bytes_read = read_file_content(path_buf, envp_read, BUFFER_SIZE);
+	if (bytes_read >= 0)
 	{
-		parse_strings(envp_read, envp_buf, BUFFER_SIZE / sizeof(char *));
+		size_t string_amount = count_null_terminated_strings(envp_read, bytes_read);
+		*envp_buf = malloc((string_amount + 1) * sizeof(char *));
+		parse_strings(envp_read, *envp_buf, BUFFER_SIZE / sizeof(char *));
 	}
+
+	free(argv_read);
+	free(envp_read);
 }
 
 void ps(void)
@@ -113,32 +137,29 @@ void ps(void)
 	DIR *proc_dir = open_proc_dir();
 	if (!proc_dir)
 		return;
-	char exe_buf[PATH_MAX];
-	char **argv_buf = allocate_buffer(BUFFER_SIZE / sizeof(char *));
-	char **envp_buf = allocate_buffer(BUFFER_SIZE / sizeof(char *));
-	if (!argv_buf || !envp_buf)
-	{
-		free(argv_buf);
-		free(envp_buf);
-		closedir(proc_dir);
-		exit(EXIT_FAILURE);
-	}
+
 	struct dirent *cur_dir;
 	while ((cur_dir = readdir(proc_dir)))
 	{
 		if (!is_pid(cur_dir->d_name))
 			continue;
 
+		char exe_buf[PATH_LENGTH];
+		char **argv_buf = NULL;
+		char **envp_buf = NULL;
+
 		pid_t pid = atol(cur_dir->d_name);
-		if (get_executable_path(pid, exe_buf) == -1) {
+		if (get_executable_path(pid, exe_buf) == -1)
+		{
 			continue;
 		}
-		get_process_info(pid, argv_buf, envp_buf);
+
+		get_process_info(pid, &argv_buf, &envp_buf);
 		report_process(pid, exe_buf, argv_buf, envp_buf);
-		errno = 0;
+
+		free(argv_buf);
+		free(envp_buf);
 	}
 
-	free(argv_buf);
-	free(envp_buf);
 	closedir(proc_dir);
 }
