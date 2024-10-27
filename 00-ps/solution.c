@@ -2,40 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <ctype.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <limits.h>
 
 #define BUFFER_SIZE 16384
 #define PATH_LENGTH 256
 #define PROC_DIRECTORY "/proc"
 
-int is_pid(const char *name)
-{
-	while (*name)
-	{
-		if (!isdigit(*name))
-		{
-			return 0;
-		}
-		name++;
-	}
-	return 1;
-}
-
-DIR *open_proc_dir()
-{
-	DIR *proc_dir = opendir(PROC_DIRECTORY);
-	if (!proc_dir)
-	{
-		report_error(PROC_DIRECTORY, ENOENT);
-		return NULL;
-	}
-	return proc_dir;
-}
 
 ssize_t get_executable_path(pid_t pid, char *exe_buf)
 {
@@ -134,16 +109,19 @@ void get_process_info(pid_t pid, char ***argv_buf, char ***envp_buf)
 
 void ps(void)
 {
-	DIR *proc_dir = open_proc_dir();
-	if (!proc_dir)
+	DIR *proc_dir = opendir(PROC_DIRECTORY);
+	if (!proc_dir) {
+		report_error(PROC_DIRECTORY, ENOENT);
 		return;
-
+	}
 	struct dirent *cur_dir;
 	while ((cur_dir = readdir(proc_dir)))
 	{
-		if (!is_pid(cur_dir->d_name))
+		int is_pid = atoi(cur_dir->d_name);
+		if (is_pid  <= 0)
+		{
 			continue;
-
+		}
 		char exe_buf[PATH_LENGTH];
 		char **argv_buf = NULL;
 		char **envp_buf = NULL;
