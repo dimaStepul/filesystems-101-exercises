@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <ctype.h>
 
-#define BUFFER_SIZE 16384
+#define BUFFER_SIZE 65536
 #define PATH_LENGTH 256
 #define PROC_DIRECTORY "/proc"
 
