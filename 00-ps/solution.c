@@ -125,6 +125,7 @@ void ps(void)
 			{
 				free(argv_read);
 				free(envp_read);
+				free(argv_buf);
 				continue;
 		}
 		 string_amount = count_null_terminated_strings(envp_read, bytes_read);
